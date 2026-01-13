@@ -374,3 +374,496 @@
   status: string  // 'received', 'preparing', 'completed', 'cancelled'
 }
 ```
+
+## 6. 백엔드 개발 요구사항
+
+### 6.1 데이터 모델 설계
+
+#### 6.1.1 Menus 테이블
+커피 메뉴 정보를 저장하는 테이블
+
+**필드 구조:**
+- `id` (number, Primary Key): 메뉴 고유 식별자
+- `name` (string): 커피 이름 (예: "아메리카노(ICE)", "카페라떼")
+- `description` (string): 메뉴 설명 (예: "시원하고 깔끔한 아이스 아메리카노")
+- `price` (number): 기본 가격 (예: 4000)
+- `image` (string): 이미지 파일 경로 또는 URL (예: "/1.png")
+- `stock` (number): 재고 수량 (기본값: 10)
+- `created_at` (timestamp): 생성 일시
+- `updated_at` (timestamp): 수정 일시
+
+**예시 데이터:**
+```sql
+INSERT INTO menus (id, name, description, price, image, stock) VALUES
+(1, '아메리카노(ICE)', '시원하고 깔끔한 아이스 아메리카노', 4000, '/1.png', 10),
+(2, '아메리카노(HOT)', '따뜻하고 진한 핫 아메리카노', 4000, '/2.png', 10),
+(3, '카페라떼', '부드러운 우유와 에스프레소의 조화', 5000, '/3.png', 10),
+(4, '카푸치노', '에스프레소와 스팀 우유, 우유 거품의 완벽한 조합', 5000, '/4.png', 10),
+(5, '카라멜 마키아토', '달콤한 카라멜 시럽이 들어간 특별한 커피', 5500, '/5.png', 10),
+(6, '바닐라 라떼', '부드러운 바닐라 향이 가득한 라떼', 5500, '/6.png', 10);
+```
+
+#### 6.1.2 Options 테이블
+메뉴 옵션 정보를 저장하는 테이블
+
+**필드 구조:**
+- `id` (number, Primary Key): 옵션 고유 식별자
+- `menu_id` (number, Foreign Key): 연결된 메뉴 ID (Menus 테이블 참조)
+- `name` (string): 옵션 이름 (예: "샷 추가", "시럽 추가")
+- `price` (number): 옵션 추가 가격 (예: 500, 0)
+- `created_at` (timestamp): 생성 일시
+- `updated_at` (timestamp): 수정 일시
+
+**예시 데이터:**
+```sql
+INSERT INTO options (id, menu_id, name, price) VALUES
+(1, 1, '샷 추가', 500),
+(2, 1, '시럽 추가', 0),
+(3, 2, '샷 추가', 500),
+(4, 2, '시럽 추가', 0);
+-- 모든 메뉴에 동일한 옵션 적용 가능
+```
+
+#### 6.1.3 Orders 테이블
+주문 정보를 저장하는 테이블
+
+**필드 구조:**
+- `id` (number, Primary Key): 주문 고유 식별자
+- `order_date` (timestamp): 주문 일시
+- `total_amount` (number): 주문 총 금액
+- `status` (string): 주문 상태 ('pending', 'received', 'preparing', 'completed', 'cancelled')
+- `created_at` (timestamp): 생성 일시
+- `updated_at` (timestamp): 수정 일시
+
+**예시 데이터:**
+```sql
+INSERT INTO orders (id, order_date, total_amount, status) VALUES
+(1, '2024-07-31 13:00:00', 12500, 'received');
+```
+
+#### 6.1.4 Order_Items 테이블
+주문 상세 내역을 저장하는 테이블 (Orders와 1:N 관계)
+
+**필드 구조:**
+- `id` (number, Primary Key): 주문 아이템 고유 식별자
+- `order_id` (number, Foreign Key): 주문 ID (Orders 테이블 참조)
+- `menu_id` (number, Foreign Key): 메뉴 ID (Menus 테이블 참조)
+- `menu_name` (string): 메뉴 이름 (주문 시점의 메뉴명 저장)
+- `quantity` (number): 주문 수량
+- `unit_price` (number): 단가 (메뉴 가격 + 옵션 가격)
+- `options` (string[] 또는 JSON): 선택한 옵션 목록 (예: ["샷 추가", "시럽 추가"])
+- `created_at` (timestamp): 생성 일시
+
+**예시 데이터:**
+```sql
+INSERT INTO order_items (id, order_id, menu_id, menu_name, quantity, unit_price, options) VALUES
+(1, 1, 1, '아메리카노(ICE)', 1, 4500, '["샷 추가"]'),
+(2, 1, 2, '아메리카노(HOT)', 2, 4000, '[]');
+```
+
+### 6.2 데이터 스키마를 위한 사용자 흐름
+
+#### 6.2.1 메뉴 목록 조회 흐름
+**사용자 행동**: 주문하기 화면 접속 또는 새로고침
+**데이터 전송**: 없음 (GET 요청)
+**서버 처리**:
+1. `GET /api/menus` 요청 수신
+2. Menus 테이블에서 모든 메뉴 조회
+3. 각 메뉴에 연결된 Options 조회 (JOIN 또는 별도 쿼리)
+4. 재고 수량(stock) 정보 포함하여 응답
+5. 프런트엔드에서 메뉴 목록 화면에 표시
+6. 관리자 화면에서는 재고 수량을 재고 현황에 표시
+
+**응답 데이터 구조:**
+```javascript
+{
+  menus: [
+    {
+      id: 1,
+      name: '아메리카노(ICE)',
+      description: '시원하고 깔끔한 아이스 아메리카노',
+      price: 4000,
+      image: '/1.png',
+      stock: 10,
+      options: [
+        { id: 1, name: '샷 추가', price: 500 },
+        { id: 2, name: '시럽 추가', price: 0 }
+      ]
+    },
+    // ... 다른 메뉴들
+  ]
+}
+```
+
+#### 6.2.2 장바구니 추가 흐름
+**사용자 행동**: 메뉴 카드에서 옵션 선택 후 "담기" 버튼 클릭
+**데이터 전송**: 없음 (클라이언트 측에서만 처리)
+**서버 처리**: 없음 (장바구니는 클라이언트 측 상태 관리)
+
+#### 6.2.3 주문하기 흐름
+**사용자 행동**: 장바구니에서 "주문하기" 버튼 클릭
+**데이터 전송**: 
+```javascript
+POST /api/orders
+{
+  items: [
+    {
+      menuId: 1,
+      menuName: '아메리카노(ICE)',
+      options: ['샷 추가'],
+      quantity: 1,
+      price: 4500
+    },
+    {
+      menuId: 2,
+      menuName: '아메리카노(HOT)',
+      options: [],
+      quantity: 2,
+      price: 4000
+    }
+  ],
+  totalAmount: 12500
+}
+```
+
+**서버 처리**:
+1. 주문 데이터 유효성 검증
+   - 메뉴 ID 존재 여부 확인
+   - 재고 수량 확인 (주문 수량 ≤ 가용 재고)
+   - 가격 계산 검증
+2. 트랜잭션 시작
+3. Orders 테이블에 주문 정보 저장
+   - `order_date`: 현재 시간
+   - `total_amount`: 총 금액
+   - `status`: 'received' (주문 접수 상태)
+4. Order_Items 테이블에 주문 상세 내역 저장
+   - 각 아이템별로 레코드 생성
+5. Menus 테이블의 재고 수량 업데이트
+   - 주문된 각 메뉴의 재고에서 주문 수량만큼 차감
+   - 재고가 0 이하로 내려가지 않도록 검증
+6. 트랜잭션 커밋
+7. 생성된 주문 ID와 함께 성공 응답 반환
+
+**응답 데이터:**
+```javascript
+{
+  success: true,
+  orderId: 123,
+  message: '주문이 완료되었습니다.'
+}
+```
+
+**에러 처리:**
+- 재고 부족 시: `400 Bad Request` - "재고가 부족합니다."
+- 잘못된 메뉴 ID: `400 Bad Request` - "존재하지 않는 메뉴입니다."
+- 서버 오류: `500 Internal Server Error` - "주문 처리 중 오류가 발생했습니다."
+
+#### 6.2.4 주문 현황 조회 흐름
+**사용자 행동**: 관리자 화면 접속 또는 새로고침
+**데이터 전송**: 없음 (GET 요청)
+**서버 처리**:
+1. `GET /api/orders` 요청 수신
+2. Orders 테이블에서 모든 주문 조회
+3. 각 주문의 Order_Items 조회 (JOIN)
+4. 주문 시간 역순으로 정렬
+5. 주문 목록 응답
+
+**응답 데이터 구조:**
+```javascript
+{
+  orders: [
+    {
+      id: 123,
+      orderDate: '2024-07-31T13:00:00Z',
+      totalAmount: 12500,
+      status: 'received',
+      items: [
+        {
+          menuId: 1,
+          menuName: '아메리카노(ICE)',
+          options: ['샷 추가'],
+          quantity: 1,
+          price: 4500
+        },
+        {
+          menuId: 2,
+          menuName: '아메리카노(HOT)',
+          options: [],
+          quantity: 2,
+          price: 4000
+        }
+      ]
+    },
+    // ... 다른 주문들
+  ]
+}
+```
+
+#### 6.2.5 주문 상태 변경 흐름
+**사용자 행동**: 관리자 화면에서 "제조 시작" 또는 "제조 완료" 버튼 클릭
+**데이터 전송**:
+```javascript
+PATCH /api/orders/:orderId/status
+{
+  status: 'preparing' // 또는 'completed'
+}
+```
+
+**서버 처리**:
+1. 주문 ID로 Orders 테이블에서 주문 조회
+2. 주문 존재 여부 확인
+3. 상태 변경 유효성 검증
+   - 'received' → 'preparing' → 'completed' 순서 확인
+   - 이미 완료된 주문은 상태 변경 불가
+4. Orders 테이블의 status 필드 업데이트
+5. 성공 응답 반환
+
+**응답 데이터:**
+```javascript
+{
+  success: true,
+  orderId: 123,
+  status: 'preparing',
+  message: '주문 상태가 변경되었습니다.'
+}
+```
+
+#### 6.2.6 주문 취소 흐름
+**사용자 행동**: 관리자 화면에서 "주문 취소" 버튼 클릭
+**데이터 전송**:
+```javascript
+PATCH /api/orders/:orderId/status
+{
+  status: 'cancelled'
+}
+```
+
+**서버 처리**:
+1. 주문 ID로 Orders 테이블에서 주문 조회
+2. 주문 존재 여부 확인
+3. 이미 완료된 주문은 취소 불가 (검증)
+4. Orders 테이블의 status를 'cancelled'로 업데이트
+5. 주문 취소 시 재고 복구
+   - Order_Items를 조회하여 주문된 메뉴와 수량 확인
+   - Menus 테이블에서 해당 메뉴의 재고를 주문 수량만큼 증가
+6. 성공 응답 반환
+
+### 6.3 API 설계
+
+#### 6.3.1 메뉴 목록 조회 API
+**엔드포인트**: `GET /api/menus`
+
+**요청**: 없음
+
+**응답 (200 OK)**:
+```javascript
+{
+  menus: [
+    {
+      id: 1,
+      name: '아메리카노(ICE)',
+      description: '시원하고 깔끔한 아이스 아메리카노',
+      price: 4000,
+      image: '/1.png',
+      stock: 10,
+      options: [
+        { id: 1, name: '샷 추가', price: 500 },
+        { id: 2, name: '시럽 추가', price: 0 }
+      ]
+    }
+    // ... 다른 메뉴들
+  ]
+}
+```
+
+**에러 응답**:
+- `500 Internal Server Error`: 서버 오류
+
+#### 6.3.2 주문 생성 API
+**엔드포인트**: `POST /api/orders`
+
+**요청 본문**:
+```javascript
+{
+  items: [
+    {
+      menuId: 1,
+      menuName: '아메리카노(ICE)',
+      options: ['샷 추가'],
+      quantity: 1,
+      price: 4500
+    }
+  ],
+  totalAmount: 4500
+}
+```
+
+**응답 (201 Created)**:
+```javascript
+{
+  success: true,
+  orderId: 123,
+  message: '주문이 완료되었습니다.'
+}
+```
+
+**에러 응답**:
+- `400 Bad Request`: 재고 부족 또는 잘못된 요청 데이터
+- `500 Internal Server Error`: 서버 오류
+
+#### 6.3.3 주문 목록 조회 API
+**엔드포인트**: `GET /api/orders`
+
+**요청 쿼리 파라미터** (선택사항):
+- `status`: 주문 상태 필터링 (예: `?status=received`)
+
+**응답 (200 OK)**:
+```javascript
+{
+  orders: [
+    {
+      id: 123,
+      orderDate: '2024-07-31T13:00:00Z',
+      totalAmount: 12500,
+      status: 'received',
+      items: [
+        {
+          menuId: 1,
+          menuName: '아메리카노(ICE)',
+          options: ['샷 추가'],
+          quantity: 1,
+          price: 4500
+        }
+      ]
+    }
+    // ... 다른 주문들
+  ]
+}
+```
+
+#### 6.3.4 주문 상세 조회 API
+**엔드포인트**: `GET /api/orders/:orderId`
+
+**요청**: URL 파라미터로 orderId 전달
+
+**응답 (200 OK)**:
+```javascript
+{
+  id: 123,
+  orderDate: '2024-07-31T13:00:00Z',
+  totalAmount: 12500,
+  status: 'received',
+  items: [
+    {
+      menuId: 1,
+      menuName: '아메리카노(ICE)',
+      options: ['샷 추가'],
+      quantity: 1,
+      price: 4500
+    }
+  ]
+}
+```
+
+**에러 응답**:
+- `404 Not Found`: 주문을 찾을 수 없음
+
+#### 6.3.5 주문 상태 변경 API
+**엔드포인트**: `PATCH /api/orders/:orderId/status`
+
+**요청 본문**:
+```javascript
+{
+  status: 'preparing' // 'received', 'preparing', 'completed', 'cancelled'
+}
+```
+
+**응답 (200 OK)**:
+```javascript
+{
+  success: true,
+  orderId: 123,
+  status: 'preparing',
+  message: '주문 상태가 변경되었습니다.'
+}
+```
+
+**에러 응답**:
+- `400 Bad Request`: 잘못된 상태 변경 (예: 완료된 주문 취소)
+- `404 Not Found`: 주문을 찾을 수 없음
+
+#### 6.3.6 재고 조회 API
+**엔드포인트**: `GET /api/menus/stock`
+
+**요청**: 없음
+
+**응답 (200 OK)**:
+```javascript
+{
+  inventory: [
+    { menuId: 1, menuName: '아메리카노(ICE)', stock: 10 },
+    { menuId: 2, menuName: '아메리카노(HOT)', stock: 10 },
+    { menuId: 3, menuName: '카페라떼', stock: 10 }
+    // ... 다른 메뉴들
+  ]
+}
+```
+
+#### 6.3.7 재고 업데이트 API
+**엔드포인트**: `PATCH /api/menus/:menuId/stock`
+
+**요청 본문**:
+```javascript
+{
+  stock: 15 // 새로운 재고 수량
+}
+```
+
+**응답 (200 OK)**:
+```javascript
+{
+  success: true,
+  menuId: 1,
+  stock: 15,
+  message: '재고가 업데이트되었습니다.'
+}
+```
+
+**에러 응답**:
+- `400 Bad Request`: 음수 재고 또는 잘못된 요청
+- `404 Not Found`: 메뉴를 찾을 수 없음
+
+### 6.4 데이터베이스 관계도
+
+```
+Menus (1) ────< (N) Options
+  │
+  │ (1)
+  │
+  │ (N)
+Order_Items ────< (N) Orders
+```
+
+**관계 설명:**
+- Menus : Options = 1 : N (한 메뉴에 여러 옵션)
+- Orders : Order_Items = 1 : N (한 주문에 여러 주문 아이템)
+- Order_Items : Menus = N : 1 (주문 아이템은 하나의 메뉴 참조)
+
+### 6.5 주요 비즈니스 로직
+
+#### 6.5.1 재고 관리 로직
+- 주문 생성 시: 주문 수량만큼 재고 차감
+- 주문 취소 시: 주문 수량만큼 재고 복구
+- 재고는 0 이하로 내려가지 않도록 검증
+- 관리자가 직접 재고 수정 가능
+
+#### 6.5.2 주문 상태 관리 로직
+- 주문 생성 시 기본 상태: 'received' (주문 접수)
+- 상태 변경 흐름: 'received' → 'preparing' → 'completed'
+- 'completed' 또는 'cancelled' 상태는 더 이상 변경 불가
+- 주문 취소는 'received' 또는 'preparing' 상태에서만 가능
+
+#### 6.5.3 가격 계산 로직
+- 주문 아이템 가격 = (메뉴 기본 가격 + 선택한 옵션 가격 합계) × 수량
+- 주문 총 금액 = 모든 주문 아이템 가격의 합계
+- 클라이언트와 서버 양쪽에서 가격 검증 수행
