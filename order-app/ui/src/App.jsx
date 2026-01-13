@@ -7,7 +7,8 @@ import InventoryStatus from './components/InventoryStatus'
 import OrderStatus from './components/OrderStatus'
 import './App.css'
 
-const API_BASE_URL = 'http://localhost:3001/api'
+// 환경 변수에서 API URL 가져오기 (빌드 타임에 주입됨)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 
 function App() {
   const [currentPage, setCurrentPage] = useState('order')

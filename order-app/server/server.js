@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import { initializeDatabase } from './scripts/initializeDatabase.js'
 
 // 환경 변수 로드
 dotenv.config()
@@ -8,8 +9,14 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 3001
 
+// CORS 설정 - 프로덕션 환경에서는 특정 도메인만 허용
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || '*', // 프로덕션에서는 프론트엔드 URL로 변경
+  credentials: true
+}
+app.use(cors(corsOptions))
+
 // 미들웨어 설정
-app.use(cors()) // 프런트엔드와의 통신을 위한 CORS 설정
 app.use(express.json()) // JSON 요청 본문 파싱
 app.use(express.urlencoded({ extended: true })) // URL 인코딩된 요청 본문 파싱
 
@@ -47,7 +54,19 @@ app.use((err, req, res, next) => {
 })
 
 // 서버 시작
-app.listen(PORT, () => {
-  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`)
-  console.log(`http://localhost:${PORT}`)
-})
+const startServer = async () => {
+  try {
+    // 데이터베이스 초기화 (테이블 생성 및 초기 데이터 삽입)
+    await initializeDatabase()
+    
+    app.listen(PORT, () => {
+      console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`)
+      console.log(`http://localhost:${PORT}`)
+    })
+  } catch (error) {
+    console.error('서버 시작 실패:', error)
+    process.exit(1)
+  }
+}
+
+startServer()
