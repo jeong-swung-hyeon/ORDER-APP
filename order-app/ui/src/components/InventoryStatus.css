@@ -1,0 +1,149 @@
+.inventory-status {
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+  margin: 0 0 1.5rem 0;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.inventory-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inventory-menu-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.inventory-stock-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: nowrap;
+}
+
+.inventory-stock {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+  white-space: nowrap;
+}
+
+.inventory-status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.inventory-status-badge.normal {
+  background-color: #4CAF50;
+  color: #ffffff;
+}
+
+.inventory-status-badge.warning {
+  background-color: #FF9800;
+  color: #ffffff;
+}
+
+.inventory-status-badge.out-of-stock {
+  background-color: #f44336;
+  color: #ffffff;
+}
+
+.inventory-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.stock-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.stock-button {
+  flex: 1;
+  background-color: #ffffff;
+  border: 2px solid #2196F3;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 4px;
+  color: #333;
+  transition: background-color 0.2s;
+}
+
+.stock-button:hover:not(:disabled) {
+  background-color: #f5f5f5;
+}
+
+.stock-button:disabled {
+  background-color: #e0e0e0;
+  border-color: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.direct-input {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.direct-input input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.direct-input input:focus {
+  outline: none;
+  border-color: #2196F3;
+}
+
+.confirm-button {
+  background-color: #ffffff;
+  border: 2px solid #2196F3;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 4px;
+  color: #333;
+  transition: background-color 0.2s;
+}
+
+.confirm-button:hover {
+  background-color: #f5f5f5;
+}
+
+@media (max-width: 768px) {
+  .inventory-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .inventory-grid {
+    grid-template-columns: 1fr;
+  }
+}
